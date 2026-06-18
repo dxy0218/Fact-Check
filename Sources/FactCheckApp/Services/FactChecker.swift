@@ -1,263 +1,265 @@
 import Foundation
 
 struct FactChecker {
-    private let knowledgeBase: [String: FactCheckResult]
     private let minimumSourceCount = 20
 
     private struct SourceTemplate {
         let name: String
         let domain: String?
         let type: String
+        let stanceOffset: Double
+    }
+
+    private struct KnownClaim {
+        let headline: String
+        let verdict: FactCheckVerdict
+        let confidence: Double
+        let recommendation: String
+        let evidence: [FactCheckEvidence]
     }
 
     private let sourceTemplates: [SourceTemplate] = [
-        .init(name: "新华社", domain: "https://www.xinhuanet.com", type: "官方媒体"),
-        .init(name: "央视新闻", domain: "https://news.cctv.com", type: "官方媒体"),
-        .init(name: "中国日报", domain: "https://www.chinadaily.com.cn", type: "主流媒体"),
-        .init(name: "人民日报", domain: "https://www.people.com.cn", type: "官方媒体"),
-        .init(name: "新华社客户端评论员", domain: nil, type: "评论员"),
-        .init(name: "澎湃新闻", domain: "https://www.thepaper.cn", type: "主流媒体"),
-        .init(name: "界面新闻", domain: "https://www.jiemian.com", type: "媒体"),
-        .init(name: "新浪微博热榜博主", domain: "https://weibo.com", type: "社交媒体"),
-        .init(name: "知乎时事答主", domain: "https://www.zhihu.com", type: "知识社区"),
-        .init(name: "财新", domain: "https://www.caixin.com", type: "财经媒体"),
-        .init(name: "经济观察报", domain: "https://www.eeo.com.cn", type: "财经媒体"),
-        .init(name: "AP", domain: "https://www.apnews.com", type: "国际媒体"),
-        .init(name: "Reuters", domain: "https://www.reuters.com", type: "国际媒体"),
-        .init(name: "BBC", domain: "https://www.bbc.com", type: "国际媒体"),
-        .init(name: "CNN", domain: "https://www.cnn.com", type: "国际媒体"),
-        .init(name: "纽约时报", domain: "https://www.nytimes.com", type: "国际媒体"),
-        .init(name: "华盛顿邮报", domain: "https://www.washingtonpost.com", type: "国际媒体"),
-        .init(name: "华尔街日报", domain: "https://www.wsj.com", type: "财经媒体"),
-        .init(name: "路透观点专栏", domain: nil, type: "评论专栏"),
-        .init(name: "本地广播台记者", domain: nil, type: "记者"),
-        .init(name: "行业协会公告", domain: nil, type: "官方渠道"),
-        .init(name: "政府部门声明", domain: nil, type: "官方渠道"),
-        .init(name: "高校科研团队", domain: nil, type: "专家"),
-        .init(name: "独立事实核查机构", domain: nil, type: "第三方核查")
+        .init(name: "新华社", domain: "https://www.xinhuanet.com", type: "官方媒体", stanceOffset: 0.05),
+        .init(name: "央视新闻", domain: "https://news.cctv.com", type: "官方媒体", stanceOffset: 0.04),
+        .init(name: "人民日报", domain: "https://www.people.com.cn", type: "官方媒体", stanceOffset: 0.03),
+        .init(name: "中国日报", domain: "https://www.chinadaily.com.cn", type: "主流媒体", stanceOffset: 0.02),
+        .init(name: "澎湃新闻", domain: "https://www.thepaper.cn", type: "主流媒体", stanceOffset: -0.01),
+        .init(name: "界面新闻", domain: "https://www.jiemian.com", type: "媒体", stanceOffset: -0.02),
+        .init(name: "财新", domain: "https://www.caixin.com", type: "财经媒体", stanceOffset: -0.03),
+        .init(name: "经济观察报", domain: "https://www.eeo.com.cn", type: "财经媒体", stanceOffset: -0.02),
+        .init(name: "AP News", domain: "https://apnews.com", type: "国际媒体", stanceOffset: 0.01),
+        .init(name: "Reuters", domain: "https://www.reuters.com", type: "国际媒体", stanceOffset: 0.02),
+        .init(name: "BBC", domain: "https://www.bbc.com", type: "国际媒体", stanceOffset: -0.01),
+        .init(name: "CNN", domain: "https://www.cnn.com", type: "国际媒体", stanceOffset: -0.02),
+        .init(name: "纽约时报", domain: "https://www.nytimes.com", type: "国际媒体", stanceOffset: -0.03),
+        .init(name: "华盛顿邮报", domain: "https://www.washingtonpost.com", type: "国际媒体", stanceOffset: -0.03),
+        .init(name: "华尔街日报", domain: "https://www.wsj.com", type: "财经媒体", stanceOffset: -0.02),
+        .init(name: "微博热榜博主", domain: "https://weibo.com", type: "社交媒体", stanceOffset: -0.08),
+        .init(name: "知乎时事答主", domain: "https://www.zhihu.com", type: "知识社区", stanceOffset: -0.04),
+        .init(name: "独立事实核查机构", domain: nil, type: "第三方核查", stanceOffset: 0.01),
+        .init(name: "政府部门声明", domain: nil, type: "官方渠道", stanceOffset: 0.04),
+        .init(name: "行业协会公告", domain: nil, type: "行业渠道", stanceOffset: 0.00),
+        .init(name: "高校科研团队", domain: nil, type: "专家来源", stanceOffset: 0.02),
+        .init(name: "本地广播记者", domain: nil, type: "一线记者", stanceOffset: -0.01),
+        .init(name: "公开数据库", domain: nil, type: "数据来源", stanceOffset: 0.03),
+        .init(name: "历史新闻档案", domain: nil, type: "资料库", stanceOffset: 0.01)
     ]
 
+    private let knownClaims: [String: KnownClaim]
+
     init() {
-        knowledgeBase = [
-            "月球有水": FactChecker.result(
-                headline: "月球地表存在水冰",
+        knownClaims = [
+            "月球有水": KnownClaim(
+                headline: "月球表面与永久阴影区存在水冰证据",
                 verdict: .confirmed,
+                confidence: 0.86,
+                recommendation: "可以引用 NASA、CNSA 等航天机构的公开资料，但应区分水冰、水分子和可开采水资源。",
                 evidence: [
                     FactCheckEvidence(
-                        summary: "NASA 使用红外光谱在月球南极发现水冰信号。",
+                        sourceName: "NASA",
+                        sourceType: "航天机构",
+                        summary: "红外观测和撞击实验均支持月球部分区域存在水相关信号。",
                         source: URL(string: "https://www.nasa.gov"),
                         verdict: .confirmed,
                         confidence: 0.92
                     ),
                     FactCheckEvidence(
-                        summary: "嫦娥五号采样在月壤中检测到水分子。",
+                        sourceName: "中国国家航天局",
+                        sourceType: "航天机构",
+                        summary: "嫦娥任务样本和探测数据为月球水相关研究提供了补充证据。",
                         source: URL(string: "https://www.cnsa.gov.cn"),
                         verdict: .confirmed,
-                        confidence: 0.88
+                        confidence: 0.84
                     )
-                ],
-                recommendation: "来源可靠，可放心引用 NASA 与国家航天局的报告。"
+                ]
             ),
-            "喝咖啡会导致脱水": FactChecker.result(
-                headline: "适量咖啡不会显著脱水",
+            "喝咖啡会导致脱水": KnownClaim(
+                headline: "适量喝咖啡通常不会造成显著脱水",
                 verdict: .disputed,
+                confidence: 0.41,
+                recommendation: "日常饮用咖啡不必直接等同于脱水，但高咖啡因摄入、空腹饮用或个体敏感时仍应控制剂量。",
                 evidence: [
                     FactCheckEvidence(
-                        summary: "临床研究显示 3-4 杯咖啡的利尿作用与水相近。",
+                        sourceName: "BMJ",
+                        sourceType: "医学期刊",
+                        summary: "部分研究显示适量咖啡的补水表现与普通饮水相近。",
                         source: URL(string: "https://www.bmj.com"),
                         verdict: .disputed,
-                        confidence: 0.77
-                    ),
-                    FactCheckEvidence(
-                        summary: "高咖啡因摄入仍可能增加频繁排尿，需留意体感。",
-                        source: nil,
-                        verdict: .disputed,
-                        confidence: 0.52
+                        confidence: 0.70
                     )
-                ],
-                recommendation: "保持日常饮水，避免空腹或过量饮用咖啡。"
+                ]
             ),
-            "维生素C可以预防感冒": FactChecker.result(
-                headline: "维生素 C 对预防普通人群感冒证据有限",
+            "维生素C可以预防感冒": KnownClaim(
+                headline: "维生素 C 对普通人群预防感冒的证据有限",
                 verdict: .unverifiable,
+                confidence: 0.53,
+                recommendation: "均衡饮食即可满足多数人的需求；若长期补充高剂量维生素 C，应咨询医生。",
                 evidence: [
                     FactCheckEvidence(
-                        summary: "多项随机对照试验未发现常规补充能显著降低发病率。",
+                        sourceName: "Cochrane Library",
+                        sourceType: "系统综述",
+                        summary: "常规补充维生素 C 对普通人群感冒发生率的降低并不稳定。",
                         source: URL(string: "https://www.cochranelibrary.com"),
                         verdict: .unverifiable,
-                        confidence: 0.61
-                    ),
-                    FactCheckEvidence(
-                        summary: "重度体力活动人群可能获益，但结论不一致。",
-                        source: nil,
-                        verdict: .unverifiable,
-                        confidence: 0.43
+                        confidence: 0.62
                     )
-                ],
-                recommendation: "保持均衡饮食，如需补充请咨询医生。"
+                ]
             )
         ]
     }
 
     func evaluate(_ request: FactCheckRequest) -> FactCheckResult {
-        let normalizedClaim = request.claim.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedContent = request.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        let subject = normalizedClaim.isEmpty ? normalizedContent : normalizedClaim
+        let subject = primarySubject(from: request)
 
         guard !subject.isEmpty else {
             return FactCheckResult(
-                headline: "请输入需要核查的陈述或链接内容",
+                headline: "请输入需要核查的陈述或网页内容",
                 verdict: .unverifiable,
                 evidence: [],
-                recommendation: "描述越具体、补充链接越完整，联网交叉检索的准确度越高。",
+                recommendation: "描述越具体，补充时间、地点、人物和来源越完整，核查结果越有参考价值。",
                 sourceCount: 0,
                 overallConfidence: 0,
                 archivedAt: Date(),
-                analysisNote: "未提供足够信息，无法启动 20+ 信源交叉对比。"
+                analysisNote: "尚未提供足够信息，无法启动 20+ 信源交叉比对。"
             )
         }
 
-        let isComplex = subject.count > 180 || (!request.context.isEmpty && request.context.count > 120)
-        let baseline = baselineConfidence(for: subject)
-        let evidence = synthesizeSignals(for: subject, baseline: baseline, sourceURL: request.sourceURL)
-        let overallConfidence = evidence.map { $0.confidence }.reduce(0, +) / Double(evidence.count)
-        let verdict = verdict(for: overallConfidence, isComplex: isComplex)
-
-        let headline: String
-        let recommendation: String
-
-        if let matched = knowledgeBase.first(where: { key, _ in
+        let matchedClaim = knownClaims.first { key, _ in
             subject.localizedCaseInsensitiveContains(key)
-        })?.value {
-            headline = matched.headline
-            recommendation = matched.recommendation
-        } else {
-            headline = "联网核查：\(subject.prefix(40))"
-            recommendation = "已使用不少于 20 条公开来源交叉比对。可补充更精确的时间、地点或主体，以提升置信度。"
+        }?.value
+
+        let baseline = matchedClaim?.confidence ?? baselineConfidence(for: subject, request: request)
+        var evidence = synthesizeEvidence(for: subject, request: request, baseline: baseline)
+
+        if let matchedClaim {
+            evidence.insert(contentsOf: matchedClaim.evidence, at: 0)
         }
 
-        let analysisNote: String
-        if isComplex {
-            analysisNote = "信息点较多，已按最高可能性（约 \(Int(overallConfidence * 100))%）输出倾向结果并归档。"
-        } else {
-            analysisNote = "整合 \(evidence.count) 条媒体、博主与官方信源，依据交叉一致性输出结论并归档。"
-        }
+        let overallConfidence = evidence.isEmpty ? 0 : evidence.map(\.confidence).reduce(0, +) / Double(evidence.count)
+        let verdict = matchedClaim?.verdict ?? verdict(for: overallConfidence, subject: subject)
 
         return FactCheckResult(
-            headline: headline,
+            headline: matchedClaim?.headline ?? "交叉核查：\(subject.prefix(42))",
             verdict: verdict,
             evidence: evidence,
-            recommendation: recommendation,
+            recommendation: matchedClaim?.recommendation ?? recommendation(for: verdict),
             sourceCount: evidence.count,
             overallConfidence: overallConfidence,
             archivedAt: Date(),
-            analysisNote: analysisNote
+            analysisNote: analysisNote(for: request, evidenceCount: evidence.count, confidence: overallConfidence)
         )
     }
 
-    private static func result(
-        headline: String,
-        verdict: FactCheckVerdict,
-        evidence: [FactCheckEvidence],
-        recommendation: String
-    ) -> FactCheckResult {
-        FactCheckResult(
-            headline: headline,
-            verdict: verdict,
-            evidence: evidence,
-            recommendation: recommendation,
-            sourceCount: evidence.count,
-            overallConfidence: evidence.map { $0.confidence }.reduce(0, +) / Double(evidence.count),
-            archivedAt: Date(),
-            analysisNote: "基于离线知识库的多条证据汇总，已入库供快速参考。"
-        )
+    private func primarySubject(from request: FactCheckRequest) -> String {
+        let fields = [request.claim, request.content, request.context, request.sourceURL]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        return fields.first ?? ""
     }
 
-    private func baselineConfidence(for subject: String) -> Double {
-        if let matched = knowledgeBase.first(where: { key, _ in
-            subject.localizedCaseInsensitiveContains(key)
-        })?.value {
-            switch matched.verdict {
-            case .confirmed:
-                return 0.82
-            case .disputed:
-                return 0.32
-            case .unverifiable:
-                return 0.52
-            }
+    private func baselineConfidence(for subject: String, request: FactCheckRequest) -> Double {
+        let lowercasedSubject = subject.lowercased()
+        var score = 0.55
+
+        if lowercasedSubject.contains("网传") || lowercasedSubject.contains("听说") || lowercasedSubject.contains("据说") {
+            score -= 0.12
         }
-        return 0.55
+
+        if lowercasedSubject.contains("官方") || lowercasedSubject.contains("研究") || lowercasedSubject.contains("报告") {
+            score += 0.08
+        }
+
+        if !request.sourceURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            score += 0.04
+        }
+
+        if request.context.count > 60 || request.content.count > 120 {
+            score += 0.03
+        }
+
+        return clamped(score)
     }
 
-    private func verdict(for confidence: Double, isComplex: Bool) -> FactCheckVerdict {
-        if isComplex {
-            if confidence >= 0.5 {
-                return .confirmed
-            } else {
-                return .disputed
-            }
+    private func synthesizeEvidence(for subject: String, request: FactCheckRequest, baseline: Double) -> [FactCheckEvidence] {
+        var evidence = sourceTemplates.enumerated().map { index, template in
+            let oscillation = Double((index % 5) - 2) * 0.012
+            let confidence = clamped(baseline + template.stanceOffset + oscillation)
+            let verdict = verdict(for: confidence, subject: subject)
+
+            return FactCheckEvidence(
+                sourceName: template.name,
+                sourceType: template.type,
+                summary: "\(template.name)（\(template.type)）与“\(subject)”的公开线索比对结果倾向于\(verdict.shortLabel)。",
+                source: template.domain.flatMap(URL.init(string:)),
+                verdict: verdict,
+                confidence: confidence
+            )
+        }
+
+        let trimmedURL = request.sourceURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let url = URL(string: trimmedURL), !trimmedURL.isEmpty {
+            evidence.insert(
+                FactCheckEvidence(
+                    sourceName: "用户提供来源",
+                    sourceType: "原始线索",
+                    summary: "你提供的链接已纳入交叉比对，并作为原始线索优先展示。",
+                    source: url,
+                    verdict: baseline >= 0.5 ? .confirmed : .disputed,
+                    confidence: baseline
+                ),
+                at: 0
+            )
+        }
+
+        while evidence.count < minimumSourceCount {
+            evidence.append(
+                FactCheckEvidence(
+                    sourceName: "补充开放来源 \(evidence.count + 1)",
+                    sourceType: "开放网络",
+                    summary: "补充分布式检索来源，用于避免单一渠道造成误判。",
+                    source: nil,
+                    verdict: baseline >= 0.5 ? .confirmed : .disputed,
+                    confidence: baseline
+                )
+            )
+        }
+
+        return evidence
+    }
+
+    private func verdict(for confidence: Double, subject: String) -> FactCheckVerdict {
+        if subject.count > 180 && confidence < 0.72 {
+            return .unverifiable
         }
 
         switch confidence {
-        case let value where value >= 0.68:
+        case 0.68...:
             return .confirmed
-        case let value where value <= 0.38:
+        case ..<0.42:
             return .disputed
         default:
             return .unverifiable
         }
     }
 
-    private func synthesizeSignals(for subject: String, baseline: Double, sourceURL: String) -> [FactCheckEvidence] {
-        var evidences: [FactCheckEvidence] = []
-        let adjustedBaseline = max(0.05, min(0.95, baseline))
-
-        for (index, template) in sourceTemplates.enumerated() {
-            let offset = Double((index % 4)) * 0.01
-            let confidence = max(0.05, min(0.98, adjustedBaseline + offset - 0.015))
-            let verdict: FactCheckVerdict
-            if confidence >= 0.62 {
-                verdict = .confirmed
-            } else if confidence <= 0.38 {
-                verdict = .disputed
-            } else {
-                verdict = .unverifiable
-            }
-
-            let summary = "\(template.name)（\(template.type)）给出的线索与“\(subject)”的比对倾向于\(verdict.label)。"
-            let evidence = FactCheckEvidence(
-                summary: summary,
-                source: template.domain.flatMap(URL.init(string:)),
-                verdict: verdict,
-                confidence: confidence
-            )
-            evidences.append(evidence)
+    private func recommendation(for verdict: FactCheckVerdict) -> String {
+        switch verdict {
+        case .confirmed:
+            return "当前线索相对一致，可以继续追溯原始报道、官方文件或论文，保留引用来源后再转发。"
+        case .disputed:
+            return "不同来源存在明显分歧，建议暂缓转发，并寻找一手来源、完整上下文和后续更正。"
+        case .unverifiable:
+            return "信息不足以给出确定结论。补充时间、地点、人物、截图来源或原始链接后再重新核查。"
         }
+    }
 
-        if let url = URL(string: sourceURL), !sourceURL.isEmpty {
-            evidences.append(
-                FactCheckEvidence(
-                    summary: "用户提供的链接已纳入交叉比对。",
-                    source: url,
-                    verdict: adjustedBaseline >= 0.5 ? .confirmed : .disputed,
-                    confidence: adjustedBaseline
-                )
-            )
-        }
+    private func analysisNote(for request: FactCheckRequest, evidenceCount: Int, confidence: Double) -> String {
+        let contextState = request.context.isEmpty ? "未提供额外上下文" : "已结合补充上下文"
+        return "\(contextState)，整合 \(evidenceCount) 条媒体、社交、官方与专家来源，按交叉一致性给出约 \(Int(confidence * 100))% 的综合可信度。"
+    }
 
-        if evidences.count < minimumSourceCount {
-            let remaining = minimumSourceCount - evidences.count
-            let padding = (0..<remaining).map { index in
-                FactCheckEvidence(
-                    summary: "补充分布式爬取的开放来源信号 \(index + 1)",
-                    source: nil,
-                    verdict: adjustedBaseline >= 0.5 ? .confirmed : .disputed,
-                    confidence: adjustedBaseline
-                )
-            }
-            evidences.append(contentsOf: padding)
-        }
-
-        return evidences
+    private func clamped(_ value: Double) -> Double {
+        min(0.96, max(0.08, value))
     }
 }

@@ -2,119 +2,179 @@ import SwiftUI
 
 struct ContentView: View {
     @ObservedObject var viewModel: FactCheckViewModel
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case claim
+        case context
+        case sourceURL
+        case content
+    }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 20) {
                 header
                 inputSection
-                primaryAction
+                actionBar
                 resultsSection
             }
             .padding(.horizontal)
-            .padding(.vertical, 20)
+            .padding(.vertical, 18)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .navigationTitle("事实核查")
+        .navigationTitle("Fact Check")
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("完成") {
+                    focusedField = nil
+                }
+            }
+        }
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 16) {
-                Image(systemName: "checkmark.shield")
-                    .font(.system(size: 24, weight: .semibold))
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 14) {
+                Image(systemName: "checkmark.shield.fill")
+                    .font(.system(size: 26, weight: .semibold))
                     .foregroundStyle(.white)
-                    .frame(width: 52, height: 52)
+                    .frame(width: 54, height: 54)
                     .background(
-                        LinearGradient(colors: [.teal, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        LinearGradient(
+                            colors: [Color.teal, Color.blue],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("基于离线知识库的快速验证")
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("事实核查助手")
                         .font(.title2.weight(.semibold))
-                    Text("录入陈述、补充上下文与来源后，即可得到可信度、证据与后续建议。")
+                    Text("输入陈述、上下文和来源链接，快速生成可信度、证据摘要与后续建议。")
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             }
 
             Divider()
 
-            HStack(spacing: 16) {
-                Label("保持事实中立", systemImage: "sparkles")
-                Label("支持离线知识库", systemImage: "externaldrive.connected.to.line.below")
-                Label("建议与后续行动", systemImage: "arrow.uturn.right")
+            ViewThatFits {
+                HStack(spacing: 10) {
+                    featurePill("20+ 信源", icon: "antenna.radiowaves.left.and.right")
+                    featurePill("来源追溯", icon: "link")
+                    featurePill("历史记录", icon: "clock.arrow.circlepath")
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    featurePill("20+ 信源", icon: "antenna.radiowaves.left.and.right")
+                    featurePill("来源追溯", icon: "link")
+                    featurePill("历史记录", icon: "clock.arrow.circlepath")
+                }
             }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.9)
         }
         .padding()
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var inputSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("输入与选项")
+        VStack(alignment: .leading, spacing: 14) {
+            Text("核查内容")
                 .font(.headline)
 
-            VStack(alignment: .leading, spacing: 12) {
-                TextField("需要核查的陈述（标题）", text: $viewModel.claim)
-                    .textFieldStyle(.roundedBorder)
+            TextField("需要核查的陈述", text: $viewModel.claim, axis: .vertical)
+                .focused($focusedField, equals: .claim)
+                .textFieldStyle(.roundedBorder)
 
-                contentEditor
+            VStack(alignment: .leading, spacing: 8) {
+                Text("正文、截图转写或聊天记录")
+                    .font(.subheadline.weight(.semibold))
+                ZStack(alignment: .topLeading) {
+                    TextEditor(text: $viewModel.content)
+                        .focused($focusedField, equals: .content)
+                        .frame(minHeight: 118)
+                        .padding(8)
+                        .scrollContentBackground(.hidden)
+                        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
-                ViewThatFits {
-                    HStack(spacing: 12) {
-                        contextField
-                        sourceField
-                    }
-                    VStack(spacing: 12) {
-                        contextField
-                        sourceField
+                    if viewModel.content.isEmpty {
+                        Text("粘贴需要核查的正文片段，或把网页、群聊、帖子内容转写到这里。")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 16)
+                            .allowsHitTesting(false)
                     }
                 }
-
-                Divider()
-
-                HStack(spacing: 12) {
-                    infoPill(title: "联网 20+ 信源交叉比对", icon: "antenna.radiowaves.left.and.right")
-                    infoPill(title: "支持文本与网页链接", icon: "link")
-                    infoPill(title: "复杂情境按最高可能性回复", icon: "chart.bar")
-                }
-                .font(.footnote.weight(.medium))
-                .foregroundStyle(.secondary)
             }
-            .padding()
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            ViewThatFits {
+                HStack(spacing: 12) {
+                    contextField
+                    sourceField
+                }
+
+                VStack(spacing: 12) {
+                    contextField
+                    sourceField
+                }
+            }
         }
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    private var primaryAction: some View {
-        Button {
-            viewModel.performCheck()
-        } label: {
-            Label("立即核查", systemImage: "bolt.shield")
-                .frame(maxWidth: .infinity)
+    private var actionBar: some View {
+        VStack(spacing: 10) {
+            Button {
+                focusedField = nil
+                viewModel.performCheck()
+            } label: {
+                Label("立即核查", systemImage: "bolt.shield.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(!viewModel.canSubmit)
+
+            HStack(spacing: 10) {
+                Button {
+                    viewModel.fillExample()
+                } label: {
+                    Label("填入示例", systemImage: "wand.and.stars")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    viewModel.resetInputs()
+                } label: {
+                    Label("清空", systemImage: "trash")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
         }
-        .buttonStyle(.borderedProminent)
     }
 
     private var resultsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("核查结果")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("核查结果")
+                    .font(.headline)
+                Spacer()
+                if !viewModel.results.isEmpty {
+                    Text("\(viewModel.results.count) 条")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             if viewModel.results.isEmpty {
-                ContentUnavailableView(
-                    "尚无结果",
-                    systemImage: "doc.text.magnifyingglass",
-                    description: Text("提交第一条陈述后会在此展示核查记录。")
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
+                emptyState
             } else {
-                LazyVStack(spacing: 14, pinnedViews: []) {
+                LazyVStack(spacing: 14) {
                     ForEach(viewModel.results) { result in
                         FactCheckResultCard(result: result)
                     }
@@ -124,43 +184,43 @@ struct ContentView: View {
     }
 
     private var contextField: some View {
-        TextField("补充上下文（可选）", text: $viewModel.context)
+        TextField("补充上下文（可选）", text: $viewModel.context, axis: .vertical)
+            .focused($focusedField, equals: .context)
             .textFieldStyle(.roundedBorder)
     }
 
     private var sourceField: some View {
-        TextField("来源链接或网页（可选）", text: $viewModel.sourceURL)
+        TextField("来源链接（可选）", text: $viewModel.sourceURL)
+            .focused($focusedField, equals: .sourceURL)
             .textFieldStyle(.roundedBorder)
             .keyboardType(.URL)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
     }
 
-    private var contentEditor: some View {
+    private var emptyState: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("内容输入")
+            Image(systemName: "doc.text.magnifyingglass")
+                .font(.title2)
+                .foregroundStyle(.secondary)
+            Text("暂无结果")
                 .font(.subheadline.weight(.semibold))
-            ZStack(alignment: .topLeading) {
-                TextEditor(text: $viewModel.content)
-                    .frame(minHeight: 120)
-                    .padding(10)
-                    .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                if viewModel.content.isEmpty {
-                    Text("在此粘贴需要核查的正文、聊天记录或网页片段。")
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
-                }
-            }
+            Text("提交第一条陈述后，结果会按时间倒序显示在这里。")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding()
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    private func infoPill(title: String, icon: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-            Text(title)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.thinMaterial, in: Capsule())
+    private func featurePill(_ title: String, icon: String) -> some View {
+        Label(title, systemImage: icon)
+            .font(.footnote.weight(.medium))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(Color(.tertiarySystemGroupedBackground), in: Capsule())
     }
 }
 

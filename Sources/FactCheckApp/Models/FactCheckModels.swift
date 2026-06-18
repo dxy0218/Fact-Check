@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-enum FactCheckVerdict: String, CaseIterable, Identifiable, Codable {
+enum FactCheckVerdict: String, CaseIterable, Identifiable, Hashable {
     case confirmed
     case disputed
     case unverifiable
@@ -11,35 +11,48 @@ enum FactCheckVerdict: String, CaseIterable, Identifiable, Codable {
     var label: String {
         switch self {
         case .confirmed:
-            return "已证实"
+            return "基本属实"
+        case .disputed:
+            return "存在疑点"
+        case .unverifiable:
+            return "无法核实"
+        }
+    }
+
+    var shortLabel: String {
+        switch self {
+        case .confirmed:
+            return "属实"
         case .disputed:
             return "存疑"
         case .unverifiable:
-            return "无法核实"
+            return "待核实"
         }
     }
 
     var tintColor: Color {
         switch self {
         case .confirmed:
-            return Color.green
+            return .green
         case .disputed:
-            return Color.orange
+            return .orange
         case .unverifiable:
-            return Color.gray
+            return .gray
         }
     }
 }
 
-struct FactCheckEvidence: Identifiable, Codable, Hashable {
+struct FactCheckEvidence: Identifiable, Hashable {
     let id = UUID()
+    let sourceName: String
+    let sourceType: String
     let summary: String
     let source: URL?
     let verdict: FactCheckVerdict
     let confidence: Double
 }
 
-struct FactCheckResult: Identifiable, Codable, Hashable {
+struct FactCheckResult: Identifiable, Hashable {
     let id = UUID()
     let headline: String
     let verdict: FactCheckVerdict
@@ -51,7 +64,7 @@ struct FactCheckResult: Identifiable, Codable, Hashable {
     let analysisNote: String
 }
 
-struct FactCheckRequest: Codable, Hashable {
+struct FactCheckRequest: Hashable {
     var claim: String
     var context: String
     var sourceURL: String
