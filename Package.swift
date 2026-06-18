@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "FactCheck",
+    defaultLocalization: "zh-Hans",
     platforms: [
         .iOS(.v16)
     ],

@@ -1,5 +1,7 @@
 # Fact-Check
 
+[![iOS Build](https://github.com/dxy0218/Fact-Check/actions/workflows/ios-build.yml/badge.svg)](https://github.com/dxy0218/Fact-Check/actions/workflows/ios-build.yml)
+
 一个面向 iOS 16+ 的 SwiftUI 事实核查应用示例。它可以录入待核查陈述、上下文、来源链接和正文片段，并生成可信度、证据摘要、来源列表和后续行动建议。
 
 > 说明：当前版本是本地演示应用，使用内置知识库和 20+ 信源模板模拟交叉核查流程，不会真正联网抓取新闻或网页。
@@ -19,20 +21,33 @@
 3. 选择 iOS 16+ 模拟器或真机运行。
 4. 在主界面输入陈述、正文或来源链接，点击「立即核查」查看结果。
 
+## 配置
+
+- `.editorconfig` 统一 UTF-8、LF 换行和 Swift/YAML 缩进。
+- `.gitattributes` 固定文本文件换行规范，避免跨平台提交产生噪音。
+- GitHub Actions 会在 `main` 推送和 PR 上运行 iOS 构建检查。
+- Dependabot 每周检查 GitHub Actions 版本更新。
+
 ## 项目结构
 
 ```text
-Sources/FactCheckApp
-├── FactCheckApp.swift
-├── Models
-│   └── FactCheckModels.swift
-├── Services
-│   └── FactChecker.swift
-├── ViewModels
-│   └── FactCheckViewModel.swift
-└── Views
-    ├── ContentView.swift
-    └── FactCheckResultCard.swift
+.
+├── .github
+│   ├── dependabot.yml
+│   └── workflows
+│       └── ios-build.yml
+├── Package.swift
+└── Sources/FactCheckApp
+    ├── FactCheckApp.swift
+    ├── Models
+    │   └── FactCheckModels.swift
+    ├── Services
+    │   └── FactChecker.swift
+    ├── ViewModels
+    │   └── FactCheckViewModel.swift
+    └── Views
+        ├── ContentView.swift
+        └── FactCheckResultCard.swift
 ```
 
 ## 后续可扩展方向
