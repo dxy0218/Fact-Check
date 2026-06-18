@@ -23,7 +23,7 @@ struct ContentView: View {
             .padding(.vertical, 18)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .navigationTitle("Fact Check")
+        .navigationTitle("事实核查")
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -51,9 +51,9 @@ struct ContentView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("事实核查助手")
+                    Text("实时事实核查助手")
                         .font(.title2.weight(.semibold))
-                    Text("输入陈述、上下文和来源链接，快速生成可信度、证据摘要与后续建议。")
+                    Text("输入陈述、正文或来源链接，应用会联网检索百科、新闻索引和原始网页，生成证据线索与可信度判断。")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -63,15 +63,15 @@ struct ContentView: View {
 
             ViewThatFits {
                 HStack(spacing: 10) {
-                    featurePill("20+ 信源", icon: "antenna.radiowaves.left.and.right")
-                    featurePill("来源追溯", icon: "link")
-                    featurePill("历史记录", icon: "clock.arrow.circlepath")
+                    featurePill("实时联网", icon: "network")
+                    featurePill("来源追踪", icon: "link")
+                    featurePill("本地历史", icon: "clock.arrow.circlepath")
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    featurePill("20+ 信源", icon: "antenna.radiowaves.left.and.right")
-                    featurePill("来源追溯", icon: "link")
-                    featurePill("历史记录", icon: "clock.arrow.circlepath")
+                    featurePill("实时联网", icon: "network")
+                    featurePill("来源追踪", icon: "link")
+                    featurePill("本地历史", icon: "clock.arrow.circlepath")
                 }
             }
         }
@@ -132,17 +132,29 @@ struct ContentView: View {
                 focusedField = nil
                 viewModel.performCheck()
             } label: {
-                Label("立即核查", systemImage: "bolt.shield.fill")
+                Label(viewModel.isChecking ? "正在核查" : "立即核查", systemImage: viewModel.isChecking ? "hourglass" : "bolt.shield.fill")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .disabled(!viewModel.canSubmit)
 
+            if viewModel.isChecking {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+            }
+
+            if let errorMessage = viewModel.errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             HStack(spacing: 10) {
                 Button {
                     viewModel.fillExample()
                 } label: {
-                    Label("填入示例", systemImage: "wand.and.stars")
+                    Label("填入测试内容", systemImage: "wand.and.stars")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -150,7 +162,7 @@ struct ContentView: View {
                 Button {
                     viewModel.resetInputs()
                 } label: {
-                    Label("清空", systemImage: "trash")
+                    Label("清空输入", systemImage: "trash")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -165,6 +177,14 @@ struct ContentView: View {
                     .font(.headline)
                 Spacer()
                 if !viewModel.results.isEmpty {
+                    Button(role: .destructive) {
+                        viewModel.clearHistory()
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("清空历史")
+
                     Text("\(viewModel.results.count) 条")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
@@ -205,7 +225,7 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
             Text("暂无结果")
                 .font(.subheadline.weight(.semibold))
-            Text("提交第一条陈述后，结果会按时间倒序显示在这里。")
+            Text("提交第一条陈述后，结果会按时间倒序保存在这里。")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }

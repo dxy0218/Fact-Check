@@ -56,7 +56,7 @@ struct FactCheckResultCard: View {
                         .padding(.vertical, 4)
                         .background(result.verdict.tintColor.opacity(0.12), in: Capsule())
 
-                    Text("信源 \(result.sourceCount) 条")
+                    Text("来源 \(result.sourceCount) 条")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -83,11 +83,17 @@ struct FactCheckResultCard: View {
 
     private var evidenceList: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("证据摘要")
+            Text("证据线索")
                 .font(.subheadline.weight(.semibold))
 
-            ForEach(Array(visibleEvidence)) { item in
-                evidenceRow(item)
+            if visibleEvidence.isEmpty {
+                Text("暂未检索到可展示的公开来源。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(Array(visibleEvidence)) { item in
+                    evidenceRow(item)
+                }
             }
 
             if result.evidence.count > visibleEvidence.count {
@@ -142,23 +148,23 @@ struct FactCheckResultCard_Previews: PreviewProvider {
     static var previews: some View {
         FactCheckResultCard(
             result: FactCheckResult(
-                headline: "月球表面与永久阴影区存在水冰证据",
+                headline: "找到相关公开线索：适量咖啡通常不会导致明显脱水",
                 verdict: .confirmed,
                 evidence: [
                     FactCheckEvidence(
-                        sourceName: "NASA",
-                        sourceType: "航天机构",
-                        summary: "红外观测和撞击实验均支持月球部分区域存在水相关信号。",
-                        source: URL(string: "https://www.nasa.gov"),
+                        sourceName: "BMJ",
+                        sourceType: "原始链接",
+                        summary: "用户提供的链接可访问，页面标题：Coffee and hydration research",
+                        source: URL(string: "https://www.bmj.com"),
                         verdict: .confirmed,
-                        confidence: 0.92
+                        confidence: 0.72
                     )
                 ],
-                recommendation: "可以引用 NASA、CNSA 等航天机构的公开资料，但应区分水冰、水分子和可开采水资源。",
-                sourceCount: 22,
-                overallConfidence: 0.84,
+                recommendation: "多个公开来源存在相关线索。转发或引用前，建议点开原始链接确认发布日期、上下文和是否存在后续更正。",
+                sourceCount: 1,
+                overallConfidence: 0.72,
                 archivedAt: Date(),
-                analysisNote: "整合 22 条公开信源，按交叉一致性给出结果。"
+                analysisNote: "已结合补充上下文，本次实时查询整合 1 条百科、新闻索引或原始链接线索。"
             )
         )
         .padding()

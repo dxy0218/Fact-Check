@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-enum FactCheckVerdict: String, CaseIterable, Identifiable, Hashable {
+enum FactCheckVerdict: String, CaseIterable, Identifiable, Codable, Hashable {
     case confirmed
     case disputed
     case unverifiable
@@ -11,18 +11,18 @@ enum FactCheckVerdict: String, CaseIterable, Identifiable, Hashable {
     var label: String {
         switch self {
         case .confirmed:
-            return "基本属实"
+            return "较可信"
         case .disputed:
             return "存在疑点"
         case .unverifiable:
-            return "无法核实"
+            return "证据不足"
         }
     }
 
     var shortLabel: String {
         switch self {
         case .confirmed:
-            return "属实"
+            return "可信"
         case .disputed:
             return "存疑"
         case .unverifiable:
@@ -42,29 +42,29 @@ enum FactCheckVerdict: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
-struct FactCheckEvidence: Identifiable, Hashable {
-    let id = UUID()
-    let sourceName: String
-    let sourceType: String
-    let summary: String
-    let source: URL?
-    let verdict: FactCheckVerdict
-    let confidence: Double
+struct FactCheckEvidence: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var sourceName: String
+    var sourceType: String
+    var summary: String
+    var source: URL?
+    var verdict: FactCheckVerdict
+    var confidence: Double
 }
 
-struct FactCheckResult: Identifiable, Hashable {
-    let id = UUID()
-    let headline: String
-    let verdict: FactCheckVerdict
-    let evidence: [FactCheckEvidence]
-    let recommendation: String
-    let sourceCount: Int
-    let overallConfidence: Double
-    let archivedAt: Date
-    let analysisNote: String
+struct FactCheckResult: Identifiable, Codable, Hashable {
+    var id = UUID()
+    var headline: String
+    var verdict: FactCheckVerdict
+    var evidence: [FactCheckEvidence]
+    var recommendation: String
+    var sourceCount: Int
+    var overallConfidence: Double
+    var archivedAt: Date
+    var analysisNote: String
 }
 
-struct FactCheckRequest: Hashable {
+struct FactCheckRequest: Codable, Hashable {
     var claim: String
     var context: String
     var sourceURL: String
