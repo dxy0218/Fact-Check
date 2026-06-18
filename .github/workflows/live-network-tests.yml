@@ -1,0 +1,38 @@
+name: Live Network Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: Number of live searches to run
+        required: true
+        default: "50"
+
+concurrency:
+  group: live-network-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  live-search:
+    name: Run live search checks
+    runs-on: macos-15
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Show toolchain
+        run: xcodebuild -version
+
+      - name: Run live network search tests
+        env:
+          RUN_LIVE_NETWORK_TESTS: "1"
+          LIVE_SEARCH_RUNS: ${{ inputs.runs }}
+        run: |
+          xcodebuild \
+            -scheme FactCheck \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            CODE_SIGNING_ALLOWED=NO \
+            -only-testing:FactCheckAppTests/FactCheckerLiveNetworkTests/testLiveSearchWorksAcrossFiftyRuns \
+            test
