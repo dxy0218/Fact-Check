@@ -26,7 +26,7 @@ enum FactCheckVerdict: String, CaseIterable, Identifiable, Codable, Hashable {
         case .disputed:
             return "存疑"
         case .unverifiable:
-            return "待核实"
+            return "待补证"
         }
     }
 

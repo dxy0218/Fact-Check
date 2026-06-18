@@ -4,59 +4,54 @@ struct FactCheckResultCard: View {
     let result: FactCheckResult
 
     private var visibleEvidence: ArraySlice<FactCheckEvidence> {
-        result.evidence.prefix(8)
+        result.evidence.prefix(6)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
             cardHeader
-            confidenceBar
+            strengthBar
             evidenceList
 
             Divider()
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 7) {
                 Text(result.analysisNote)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Text(result.recommendation)
                     .font(.subheadline)
-                    .foregroundStyle(.primary)
                     .lineSpacing(3)
             }
         }
-        .padding(16)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(14)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .strokeBorder(result.verdict.tintColor.opacity(0.18))
         )
     }
 
     private var cardHeader: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 11) {
             Image(systemName: iconName(for: result.verdict))
-                .font(.title3.weight(.bold))
+                .font(.headline.weight(.semibold))
                 .foregroundStyle(result.verdict.tintColor)
-                .frame(width: 34, height: 34)
+                .frame(width: 30, height: 30)
                 .background(result.verdict.tintColor.opacity(0.12), in: Circle())
                 .accessibilityLabel(result.verdict.label)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(result.headline)
                     .font(.headline)
-                    .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 8) {
                     Text(result.verdict.label)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(result.verdict.tintColor)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(result.verdict.tintColor.opacity(0.12), in: Capsule())
 
-                    Text("来源 \(result.sourceCount) 条")
+                    Text("\(result.sourceCount) 个来源")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -68,22 +63,33 @@ struct FactCheckResultCard: View {
         }
     }
 
-    private var confidenceBar: some View {
-        ProgressView(value: result.overallConfidence) {
+    private var strengthBar: some View {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("综合可信度")
+                Text("参考强度")
                 Spacer()
                 Text("\(Int(result.overallConfidence * 100))%")
+                    .monospacedDigit()
             }
             .font(.caption.weight(.medium))
+            .foregroundStyle(.secondary)
+
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color(.tertiarySystemFill))
+                    Capsule()
+                        .fill(result.verdict.tintColor)
+                        .frame(width: max(8, proxy.size.width * result.overallConfidence))
+                }
+            }
+            .frame(height: 6)
         }
-        .tint(result.verdict.tintColor)
-        .progressViewStyle(.linear)
     }
 
     private var evidenceList: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("证据线索")
+        VStack(alignment: .leading, spacing: 9) {
+            Text("来源线索")
                 .font(.subheadline.weight(.semibold))
 
             if visibleEvidence.isEmpty {
@@ -97,7 +103,7 @@ struct FactCheckResultCard: View {
             }
 
             if result.evidence.count > visibleEvidence.count {
-                Text("另有 \(result.evidence.count - visibleEvidence.count) 条来源已纳入综合评分。")
+                Text("另有 \(result.evidence.count - visibleEvidence.count) 条来源已纳入综合判断。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -105,10 +111,11 @@ struct FactCheckResultCard: View {
     }
 
     private func evidenceRow(_ item: FactCheckEvidence) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 7) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(item.sourceName)
                     .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
                 Text(item.sourceType)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -120,26 +127,27 @@ struct FactCheckResultCard: View {
 
             Text(item.summary)
                 .font(.footnote)
-                .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
 
             if let source = item.source {
-                Link(source.host ?? source.absoluteString, destination: source)
-                    .font(.caption)
+                Link(destination: source) {
+                    Label(source.host ?? source.absoluteString, systemImage: "arrow.up.right")
+                        .font(.caption)
+                }
             }
         }
         .padding(10)
-        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
     private func iconName(for verdict: FactCheckVerdict) -> String {
         switch verdict {
         case .confirmed:
-            return "checkmark.seal.fill"
+            return "checkmark.seal"
         case .disputed:
-            return "questionmark.diamond.fill"
+            return "questionmark.diamond"
         case .unverifiable:
-            return "exclamationmark.triangle.fill"
+            return "exclamationmark.triangle"
         }
     }
 }
@@ -154,17 +162,17 @@ struct FactCheckResultCard_Previews: PreviewProvider {
                     FactCheckEvidence(
                         sourceName: "BMJ",
                         sourceType: "原始链接",
-                        summary: "用户提供的链接可访问，页面标题：Coffee and hydration research",
+                        summary: "来源链接可访问，页面标题：Coffee and hydration research",
                         source: URL(string: "https://www.bmj.com"),
                         verdict: .confirmed,
                         confidence: 0.72
                     )
                 ],
-                recommendation: "多个公开来源存在相关线索。转发或引用前，建议点开原始链接确认发布日期、上下文和是否存在后续更正。",
+                recommendation: "已有多个公开来源可交叉参考。引用前仍建议打开原始链接，确认发布时间、上下文和后续更正。",
                 sourceCount: 1,
                 overallConfidence: 0.72,
                 archivedAt: Date(),
-                analysisNote: "已结合补充上下文，本次实时查询整合 1 条百科、新闻索引或原始链接线索。"
+                analysisNote: "已结合补充上下文，本次整理了 1 条百科、新闻索引或原始链接线索。"
             )
         )
         .padding()

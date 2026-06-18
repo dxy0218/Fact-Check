@@ -17,6 +17,11 @@ let package = Package(
         .executableTarget(
             name: "FactCheckApp",
             path: "Sources/FactCheckApp"
+        ),
+        .testTarget(
+            name: "FactCheckAppTests",
+            dependencies: ["FactCheckApp"],
+            path: "Tests/FactCheckAppTests"
         )
     ]
 )

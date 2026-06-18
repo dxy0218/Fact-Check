@@ -12,10 +12,18 @@ enum FactCheckError: LocalizedError {
 }
 
 struct FactChecker {
-    private let session: URLSession
+    typealias DataLoader = @Sendable (URLRequest) async throws -> (Data, URLResponse)
+
+    private let dataLoader: DataLoader
 
     init(session: URLSession = .shared) {
-        self.session = session
+        self.dataLoader = { request in
+            try await session.data(for: request)
+        }
+    }
+
+    init(dataLoader: @escaping DataLoader) {
+        self.dataLoader = dataLoader
     }
 
     func evaluate(_ request: FactCheckRequest) async throws -> FactCheckResult {
@@ -31,7 +39,7 @@ struct FactChecker {
         let evidence = await (wikipediaEvidence + gdeltEvidence + providedSourceEvidence)
             .sorted { $0.confidence > $1.confidence }
 
-        let verdict = verdict(for: evidence, subject: subject)
+        let verdict = verdict(for: evidence)
         let confidence = overallConfidence(for: evidence, verdict: verdict)
 
         return FactCheckResult(
@@ -65,10 +73,10 @@ struct FactChecker {
 
         guard let url = components?.url else { return [] }
         var request = URLRequest(url: url)
-        request.timeoutInterval = 12
+        request.timeoutInterval = 10
 
         do {
-            let (data, _) = try await session.data(for: request)
+            let (data, _) = try await dataLoader(request)
             let response = try JSONDecoder().decode(WikipediaSearchResponse.self, from: data)
 
             return response.query.search.map { item in
@@ -76,9 +84,9 @@ struct FactChecker {
                 let confidence = confidence(forTitle: item.title, summary: summary, subject: subject, base: 0.62)
 
                 return FactCheckEvidence(
-                    sourceName: "Wikipedia：\(item.title)",
+                    sourceName: "Wikipedia: \(item.title)",
                     sourceType: "百科资料",
-                    summary: summary.isEmpty ? "找到相关百科条目，可作为背景线索继续核对原始出处。" : summary,
+                    summary: summary.isEmpty ? "找到相关百科条目，可继续核对原始出处。" : summary,
                     source: URL(string: "https://zh.wikipedia.org/?curid=\(item.pageid)"),
                     verdict: evidenceVerdict(from: item.title + summary, confidence: confidence),
                     confidence: confidence
@@ -101,10 +109,10 @@ struct FactChecker {
 
         guard let url = components?.url else { return [] }
         var request = URLRequest(url: url)
-        request.timeoutInterval = 12
+        request.timeoutInterval = 10
 
         do {
-            let (data, _) = try await session.data(for: request)
+            let (data, _) = try await dataLoader(request)
             let response = try JSONDecoder().decode(GDELTResponse.self, from: data)
 
             return response.articles.prefix(12).map { article in
@@ -134,13 +142,15 @@ struct FactChecker {
 
         do {
             var request = URLRequest(url: url)
-            request.timeoutInterval = 12
+            request.timeoutInterval = 10
             request.setValue("FactCheckApp/1.0", forHTTPHeaderField: "User-Agent")
 
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await dataLoader(request)
             let title = extractTitle(from: data) ?? url.host ?? url.absoluteString
             let statusCode = (response as? HTTPURLResponse)?.statusCode
-            let summary = statusCode.map { "用户提供的链接可访问，HTTP 状态码 \($0)。页面标题：\(title)" } ?? "用户提供的链接可访问。页面标题：\(title)"
+            let summary = statusCode.map {
+                "来源链接可访问，HTTP 状态码 \($0)。页面标题：\(title)"
+            } ?? "来源链接可访问。页面标题：\(title)"
             let confidence = statusCode.map { (200..<400).contains($0) ? 0.66 : 0.38 } ?? 0.56
 
             return [
@@ -213,7 +223,7 @@ struct FactChecker {
         }
     }
 
-    private func verdict(for evidence: [FactCheckEvidence], subject: String) -> FactCheckVerdict {
+    private func verdict(for evidence: [FactCheckEvidence]) -> FactCheckVerdict {
         guard !evidence.isEmpty else { return .unverifiable }
 
         let disputedCount = evidence.filter { $0.verdict == .disputed }.count
@@ -256,20 +266,20 @@ struct FactChecker {
     private func recommendation(for verdict: FactCheckVerdict, evidenceCount: Int) -> String {
         switch verdict {
         case .confirmed:
-            return "多个公开来源存在相关线索。转发或引用前，建议点开原始链接确认发布日期、上下文和是否存在后续更正。"
+            return "已有多个公开来源可交叉参考。引用前仍建议打开原始链接，确认发布时间、上下文和后续更正。"
         case .disputed:
-            return "检索结果中出现辟谣、争议或否认信号。建议暂缓转发，并优先查找官方原文、权威媒体更正和事实核查机构说明。"
+            return "检索结果中出现辟谣、争议或否认信号。建议先暂停转发，优先查看官方原文、权威媒体更正和事实核查机构说明。"
         case .unverifiable:
             if evidenceCount == 0 {
-                return "暂未从在线来源取得足够证据。请补充更具体的关键词、原始链接、发布时间、地点或人物后再试。"
+                return "暂未取得足够证据。可以补充更具体的关键词、原始链接、发布时间、地点或人物后再试。"
             }
-            return "已有线索不足以给出确定结论。建议继续补充原始来源，并对比报道时间线和出处可信度。"
+            return "现有线索不足以给出确定结论。建议继续补充原始来源，并对比报道时间线和出处可信度。"
         }
     }
 
     private func analysisNote(for request: FactCheckRequest, evidenceCount: Int, confidence: Double) -> String {
         let contextState = request.context.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "未提供额外上下文" : "已结合补充上下文"
-        return "\(contextState)，本次实时查询整合 \(evidenceCount) 条百科、新闻索引或原始链接线索，综合可信度约 \(Int(confidence * 100))%。"
+        return "\(contextState)，本次整理了 \(evidenceCount) 条百科、新闻索引或原始链接线索，参考强度约 \(Int(confidence * 100))%。"
     }
 
     private func containsUncertaintySignal(_ text: String) -> Bool {

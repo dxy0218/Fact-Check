@@ -29,3 +29,11 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      - name: Run stability tests
+        run: |
+          xcodebuild \
+            -scheme FactCheck \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+            CODE_SIGNING_ALLOWED=NO \
+            test

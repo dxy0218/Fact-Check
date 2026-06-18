@@ -17,7 +17,7 @@
 1. 使用 macOS + Xcode 15 或更新版本打开仓库根目录的 `Package.swift`。
 2. 选择 `FactCheck` scheme。
 3. 选择 iOS 16+ 模拟器或真机运行。
-4. 在主界面输入陈述、正文或来源链接，点击“立即核查”查看结果。
+4. 在主界面输入陈述、正文或来源链接，点击“开始核查”查看结果。
 
 应用不需要 API Key。联网检索依赖设备可访问以下 HTTPS 服务：
 
@@ -29,8 +29,12 @@
 
 - `.editorconfig` 统一 UTF-8、LF 换行和 Swift/YAML 缩进。
 - `.gitattributes` 固定文本文件换行规范，避免跨平台提交产生噪音。
-- GitHub Actions 会在 `main` 推送和 PR 上运行 iOS 构建检查。
+- GitHub Actions 会在 `main` 推送和 PR 上运行 iOS 构建与稳定性测试。
 - Dependabot 每周检查 GitHub Actions 版本更新。
+
+## 测试
+
+`FactCheckAppTests` 使用本地 mock 响应覆盖核心核查流程，不依赖公网稳定性。当前包含 400 次循环核查、结果 Codable 往返和空输入错误校验。
 
 ## 项目结构
 
@@ -41,17 +45,19 @@
 │   └── workflows
 │       └── ios-build.yml
 ├── Package.swift
-└── Sources/FactCheckApp
-    ├── FactCheckApp.swift
-    ├── Models
-    │   └── FactCheckModels.swift
-    ├── Services
-    │   └── FactChecker.swift
-    ├── ViewModels
-    │   └── FactCheckViewModel.swift
-    └── Views
-        ├── ContentView.swift
-        └── FactCheckResultCard.swift
+├── Sources/FactCheckApp
+│   ├── FactCheckApp.swift
+│   ├── Models
+│   │   └── FactCheckModels.swift
+│   ├── Services
+│   │   └── FactChecker.swift
+│   ├── ViewModels
+│   │   └── FactCheckViewModel.swift
+│   └── Views
+│       ├── ContentView.swift
+│       └── FactCheckResultCard.swift
+└── Tests/FactCheckAppTests
+    └── FactCheckerStabilityTests.swift
 ```
 
 ## 后续可扩展方向
